@@ -14,65 +14,148 @@ import com.mobileapp.labelwatch.data.models.ProductAnalysis
 import com.mobileapp.labelwatch.ui.components.IngredientCard
 import com.mobileapp.labelwatch.ui.components.ScoreCard
 import com.mobileapp.labelwatch.ui.components.SectionHeader
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.navigation.NavHostController
+import com.mobileapp.labelwatch.session.ScanSession
+import com.mobileapp.labelwatch.utils.SafetyMessage
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.mobileapp.labelwatch.ui.components.AllergyAlert
+import com.mobileapp.labelwatch.ui.components.IngredientDetailDialog
+import com.mobileapp.labelwatch.ui.components.PrimaryButton
+import com.mobileapp.labelwatch.ui.components.ScoreCircle
+import com.mobileapp.labelwatch.utils.ProductSummary
+import com.mobileapp.labelwatch.ui.components.AllergyAlert
+
 
 @Composable
-fun ResultsScreen(
-
-    analysis: ProductAnalysis,
-
-    onIngredientClick: (Ingredient) -> Unit
-
+fun ResultScreen(
+    navController: NavHostController
 ) {
-    Column(
 
+    val analysis = ScanSession.latestAnalysis
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(
+                rememberScrollState()
+            )
+            .padding(24.dp),
 
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        ScoreCard(analysis)
+
+        Text(
+            text = "Scan Results",
+            style = MaterialTheme.typography.headlineMedium
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        SectionHeader("Recognized Ingredients")
+        var selectedIngredient by remember {
+            mutableStateOf<Ingredient?>(null)
+        }
 
-        analysis.recognizedIngredients.forEach { ingredient ->
+        if (analysis != null) {
 
-            IngredientCard(
-
-                ingredient = ingredient,
-
-                onClick = {
-
-                    onIngredientClick(ingredient)
-
-                }
-
+            ScoreCircle(
+                score = analysis.overallScore
             )
 
-        }
+            Text(
+                SafetyMessage.get(
+                    analysis.safetyLevel
+                ),
+                style = MaterialTheme.typography.titleLarge
+            )
 
-        if (analysis.unknownIngredients.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text= "Summary",
+                style = MaterialTheme.typography.titleMedium
+            )
 
-            SectionHeader("Unknown Ingredients")
+            Spacer(modifier = Modifier.height(8.dp))
 
-            analysis.unknownIngredients.forEach {
+            Text(
+                text = ProductSummary.create(analysis),
+                style = MaterialTheme.typography.bodyMedium
+            )
 
-                Text(
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    text = "🟣 $it",
+            AllergyAlert(
+                ingredients = analysis.recognizedIngredients
+            )
 
-                    style = MaterialTheme.typography.bodyLarge
+            Spacer (modifier = Modifier.height(12.dp))
 
+            Text(
+                "Recognized Ingredients",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+
+
+            analysis.recognizedIngredients.forEach { ingredient ->
+                IngredientCard(
+                    ingredient = ingredient,
+                    onClick = {
+                        selectedIngredient = ingredient
+                    }
                 )
-
             }
 
+            Text(
+                "Unknown Ingredients",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            analysis.unknownIngredients.forEach {
+                Text("▪️${it}")
+                Text(
+                    text = "Not yet available in the labelwatch database.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+        } else {
+
+            Text("No analysis available.")
+
         }
 
+        Spacer(modifier = Modifier.height(32.dp))
+
+        PrimaryButton(
+            text = "Scan again",
+            onClick = {
+                navController.popBackStack()
+            }
+        )
+
+        selectedIngredient?.let {
+            IngredientDetailDialog(
+                ingredient = it,
+                onDismiss = {
+                    selectedIngredient = null
+                }
+            )
+        }
+
+
+
     }
+
 
 }

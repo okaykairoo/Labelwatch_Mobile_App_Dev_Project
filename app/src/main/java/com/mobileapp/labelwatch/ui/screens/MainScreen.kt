@@ -14,9 +14,14 @@ import com.mobileapp.labelwatch.ui.screens.history.HistoryScreen
 import com.mobileapp.labelwatch.ui.screens.profile.ProfileScreen
 import androidx.compose.material.icons.filled.Build
 import com.mobileapp.labelwatch.ui.screens.MatcherTestScreen
+import androidx.navigation.NavHostController
+
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    navController: NavHostController
+) {
+
 
     var selectedTab by remember { mutableStateOf(0) }
 
@@ -47,19 +52,19 @@ fun MainScreen() {
                     label = { Text("Profile") }
                 )
 
-                NavigationBarItem(
-                    selected = selectedTab ==3,
-                    onClick = { selectedTab = 3},
-                    icon = {
-                        Icon(
-                            Icons.Default.Build,
-                            contentDescription = "Developer Test"
-                        )
-                    },
-                    label = {
-                        Text("Dev")
-                    }
-                )
+                //NavigationBarItem(
+                    //selected = selectedTab ==3,
+                    //onClick = { selectedTab = 3},
+                    //icon = {
+                        //Icon(
+                           // Icons.Default.Build,
+                           // contentDescription = "Developer Test"
+                       // )
+                   // },
+                    //label = {
+                        //Text("Dev")
+                    //}
+                //)
             }
         }
     ) { padding ->
@@ -67,10 +72,10 @@ fun MainScreen() {
         Box(modifier = Modifier.padding(padding)) {
 
             when (selectedTab) {
-                0 -> ScanScreen()
+                0 -> ScanScreen(navController)
                 1 -> HistoryScreen()
                 2 -> ProfileScreen()
-                3 -> MatcherTestScreen()
+                //3 -> MatcherTestScreen()
             }
         }
     }

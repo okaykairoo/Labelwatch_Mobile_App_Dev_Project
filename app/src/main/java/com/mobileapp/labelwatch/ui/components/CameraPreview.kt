@@ -19,30 +19,36 @@ import java.util.Locale
 import java.util.Date
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageCapture.OutputFileOptions
-
-
+import android.graphics.BitmapFactory
+import android.graphics.Bitmap
+import android.net.Uri
+import com.mobileapp.labelwatch.data.camera.GuideInfo
 
 @Composable
 fun CameraPreview(
     modifier: Modifier = Modifier,
     captureRequest: Int,
+    guideRect: GuideInfo? = null,  // Added: guide rectangle info
     onImageCaptured: (android.net.Uri) -> Unit,
     onError: (Exception) -> Unit
-){
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val imageCapture = remember {
         ImageCapture.Builder().build()
     }
-    AndroidView (
+
+    AndroidView(
         modifier = modifier,
         factory = { ctx ->
             val previewView = PreviewView(ctx)
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+
             cameraProviderFuture.addListener({
                 val cameraProvider = cameraProviderFuture.get()
                 val preview = Preview.Builder().build()
                 preview.surfaceProvider = previewView.surfaceProvider
+
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner,
@@ -50,19 +56,14 @@ fun CameraPreview(
                     preview,
                     imageCapture
                 )
-
-
-
             }, ContextCompat.getMainExecutor(ctx))
 
             previewView
-
-
         }
     )
+
     LaunchedEffect(captureRequest) {
         if (captureRequest > 0) {
-            //image capture logic
             val photoFile = File(
                 context.cacheDir,
                 "labelwatch_${
@@ -72,6 +73,7 @@ fun CameraPreview(
                     ).format(Date())
                 }.jpg"
             )
+
             val outputOptions = OutputFileOptions.Builder(photoFile).build()
 
             imageCapture.takePicture(
@@ -81,18 +83,79 @@ fun CameraPreview(
                     override fun onImageSaved(
                         outputFileResults: ImageCapture.OutputFileResults
                     ) {
-                        onImageCaptured(photoFile.toURI().let{
-                            android.net.Uri.fromFile(photoFile)
-                        })
+                        // If guide rect is provided, crop the image
+                        val finalUri = if (guideRect != null) {
+                            cropImageToGuide(context, photoFile, guideRect)
+                        } else {
+                            Uri.fromFile(photoFile)
+                        }
+
+                        // Delete original file if cropped
+                        if (guideRect != null && photoFile.exists()) {
+                            photoFile.delete()
+                        }
+
+                        onImageCaptured(finalUri ?: Uri.fromFile(photoFile))
                     }
-                    override fun onError(
-                        exception: ImageCaptureException
-                    ) {
+
+                    override fun onError(exception: ImageCaptureException) {
                         onError(exception)
                     }
                 }
             )
-
         }
+    }
+}
+
+// Helper function to crop image to guide rectangle
+private fun cropImageToGuide(
+    context: android.content.Context,
+    file: File,
+    guideRect: GuideInfo
+): Uri? {
+    return try {
+        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+        if (bitmap == null) return null
+
+        val width = bitmap.width
+        val height = bitmap.height
+
+        // Convert percentage-based guide to pixel coordinates
+        val left = (width * guideRect.left).toInt().coerceAtLeast(0)
+        val top = (height * guideRect.top).toInt().coerceAtLeast(0)
+        val right = (width * guideRect.right).toInt().coerceAtMost(width)
+        val bottom = (height * guideRect.bottom).toInt().coerceAtMost(height)
+
+        // Only crop if the guide area is valid
+        if (right <= left || bottom <= top) {
+            return null
+        }
+
+        val croppedBitmap = Bitmap.createBitmap(
+            bitmap,
+            left,
+            top,
+            right - left,
+            bottom - top
+        )
+
+        // Save cropped bitmap
+        val croppedFile = File(
+            context.cacheDir,
+            "cropped_${System.currentTimeMillis()}.jpg"
+        )
+
+        java.io.FileOutputStream(croppedFile).use { outputStream ->
+            croppedBitmap.compress(
+                Bitmap.CompressFormat.JPEG,
+                95,
+                outputStream
+            )
+        }
+
+        Uri.fromFile(croppedFile)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 }

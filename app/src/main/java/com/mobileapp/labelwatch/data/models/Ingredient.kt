@@ -9,6 +9,8 @@ data class Ingredient(
 
     val ingredientScore: Int,
 
+    val purpose: String,
+
     val safetyLevel: SafetyLevel,
 
     val description: String,
